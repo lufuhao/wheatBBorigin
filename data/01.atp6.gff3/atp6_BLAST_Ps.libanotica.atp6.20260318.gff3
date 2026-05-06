@@ -1,0 +1,4 @@
+##gff-version 3
+Chr4	BLAST	gene	1339274	1340428	.	+	.	ID=Ps_libanotica_Chr4_1M;Name=Ps_libanotica_Chr4_1M;previous_id=EVM_prediction_CTG522.8
+Chr4	BLAST	mRNA	1339274	1340428	.	+	.	ID=Ps_libanotica_Chr4_1M.mrna1;Parent=Ps_libanotica_Chr4_1M
+Chr4	BLAST	CDS	1339274	1340428	.	+	.	ID=Ps_libanotica_Chr4_1M.cds;Parent=Ps_libanotica_Chr4_1M.mrna1

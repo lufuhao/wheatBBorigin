@@ -1,0 +1,308 @@
+#!/usr/bin/env Rscript
+
+################# AUTHORS #########################
+#Author:
+#  Fu-Hao Lu
+#  Professor, PhD
+#  State Key Labortory of Crop Stress Adaptation and Improvement
+#  College of Life Science
+#  Jinming Campus, Henan University
+#  Kaifeng 475004, P.R.China
+#  E-mail: lufuhao@henu.edu.cn
+
+
+packages.required <- c("optparse", "ape", "ggtree", "ggplot2", "phytools")
+invisible(lapply(packages.required, function(x) require(x, character.only = T, quietly = T, warn.conflicts = FALSE)))
+
+library(optparse)
+option_list = list(
+    make_option(c("-f", "--file"), type="character", default=NULL,
+              action = "store", dest="file", help="Input File[default= %default]", metavar="character"),
+    make_option(c("-o", "--out"), type="character", default="MyOut",
+              action = "store", dest="out", help="Output File prefix [default= %default]", metavar="PREFIX"),
+    make_option(c("-e", "--exclude"), type="character", default=NULL,
+              action = "store", dest="exclist", help="Species to exclude, comma-delimited [default= %default]", metavar="XX,YY"),
+    make_option(c("-r", "--root"), type="character", default=NULL,
+              action = "store", dest="root", help="Species to root, [default= %default]", metavar="XX"),
+    make_option(c("--verbose"), type="logical", default=FALSE,
+              action = "store_true", help="Print detailed info [default= %default]", metavar=NULL),
+    make_option(c("--debug"), type="logical", default=FALSE,
+              action = "store_true", help="Print detailed debug info and diagnostic info [default= %default]", metavar=NULL)
+  );
+###OptionParser: prog: Program name to be substituted for %prog
+###OptionParser: formatter: IndentedHelpFormatter/TitledHelpFormatter
+###OptionParser: usage
+###OptionParser: description
+###OptionParser: epilogue
+opt_parser=OptionParser(option_list=option_list, usage = "fasta_alignment_plot.Rscript [options]", add_help_option = TRUE, description="
+This script is  to plot short aligned fasta!
+
+Requirements:
+    R: ape, ggplot2, optparse, phytools", epilogue = "
+Example:
+    Rscript fasta_alignment_plot.Rscript -f xxx.tre
+
+Author:
+  Fu-Hao Lu
+  Professor, PhD
+  State Key Labortory of Crop Stress Adaptation and Improvement
+  College of Life Science
+  Jinming Campus, Henan University
+  Kaifeng 475004, P.R.China
+  E-mail: lufuhao@henu.edu.cn
+")
+opt = parse_args(opt_parser)
+
+if (is.null(opt$file)){
+	print_help(opt_parser)
+	stop("Error: invalid input file", call.=FALSE)
+}
+
+
+
+### subfunctions
+### Dependency: Phytools::plotTree
+###
+### https://garynapier.github.io/ggtree/
+### https://yulab-smu.top/treedata-book/chapter7.html
+
+plotPhylogeneTree1 <- function (GPTtree, GPTout) {
+	library(phytools, quietly = T)
+	plotImage(paste0(GPTout, ".svg"), 8.5, 6, 10, "ArialMT", 600)
+	print(plotTree(GPTtree,direction="leftwards", xlim=c(174,-40), ftype="i", mar=c(4.1,1.1,0.1,1.1), fsize=0.8))
+	print(axis(1))
+	print(title(xlab="Millions of years ago (MYA)"))
+	print(abline(v=seq(0,150,by=50),lty="dotted",col="grey"))
+	dev.off()
+	return (0)
+}
+
+plotPhylogeneTree2 <- function (GPTtree, GPTout) {
+	library(phytools, quietly = T)
+	plotTree(GPTtree,direction="leftwards", xlim=c(174,-40), ftype="i", mar=c(4.1,1.1,0.1,1.1), fsize=0.8)
+	axis(1)
+	title(xlab="Millions of years ago (MYA)")
+	abline(v=seq(0,150,by=50),lty="dotted",col="grey")
+	dev.copy(pdf, paste0(GPTout, '.pdf'), width = 17, height = 8)
+	dev.off()
+	return (0)
+}
+
+plotPhylogeneTree3 <- function (GPTtree, GPTout) {
+	if (! isPackageLoaded("ape")) {
+		library(ape, quietly = T)
+	}
+	pdf(file=paste0(GPTout, ".pdf"), width=8.5/cm(1), height=6/cm(1), pointsize=10, family="ArialMT", bg = "white")
+	plot(GPTtree,edge.width = 1,align.tip = TRUE)
+#	add.scale.bar()
+	axisPhylo(side=1,backward=TRUE)
+#	dev.copy(pdf, paste(GPTout, '.pdf'), width = 17, height = 10)
+	dev.off()
+	return (0)
+}
+
+plotPhylogeneTree4 <- function (GPTtree, GPTout) {
+	if (! isPackageLoaded("ggtree")) {
+		library(ggtree, quietly = T)
+	}
+	GPTplot<-ggtree(GPTtree,layout = "rectangular", color="black", size=1, right=T) +
+		theme_tree2() +
+		geom_tiplab(align = TRUE, size=4) +
+#		geom_treescale(fontsize=3, linesize=.5) +
+		theme(axis.text=element_text(size=10))
+	pdf(file=paste0(GPTout, ".pdf"), width=8.5/cm(1), height=6/cm(1), pointsize=10, family="ArialMT", bg = "white")
+	print(GPTplot)
+	dev.off()
+	return (0)
+}
+
+#https://github.com/YuLab-SMU/ggtree/issues/469
+### Dependency: R.utils::isPackageLoaded, ggtree (revts), ggplot2 (labs, scale_x_continuous)
+plotPhylogeneTree5 <- function (GPTtree, GPTout) {
+	if (! isPackageLoaded("ggtree")) {
+		library(ggtree, quietly = T)
+	}
+	if (! isPackageLoaded("ggplot2")) {
+		library(ggplot2, quietly = T)
+	}
+	GPTalen <- GPTtree$edge.length |> sort(decreasing = T)
+	GPTmin <- ceiling(GPTalen[1])*-1
+	GPTplot<-ggtree(GPTtree,layout = "rectangular", color="black", size=.5, right=T) +
+		geom_tiplab (align = TRUE, size=4) +
+		theme_tree2()+
+		labs(caption="Divergence time (million years ago)")
+	GPTplot <- revts(GPTplot)
+	GPTplot + scale_x_continuous(breaks=seq((GPTmin%/%10 +1)*10,0,10), labels=abs) +
+		theme(axis.text=element_text(size=8), axis.title=element_text(size=10))
+	ggsave (paste0(GPTout, ".pdf"), plot=GPTplot, device="pdf", width=8.5, height=6, units="cm",dpi=600, family="ArialMT", bg = "white")
+	return (0)
+}
+
+### Dependency: R.utils::isPackageLoaded, ggtree (revts), ggplot2 (labs, scale_x_continuous)
+plotPhylogeneTree6 <- function (GPTtree, GPTout) {
+	if (! isPackageLoaded("ggtree")) {
+		library(ggtree, quietly = T)
+	}
+	if (! isPackageLoaded("ggplot2")) {
+		library(ggplot2, quietly = T)
+	}
+	GPTalen <- GPTtree$edge.length |> sort(decreasing = T)
+	GPTmin <- ceiling(GPTalen[1])*-1
+	GPTplot<-ggtree(GPTtree,layout = "rectangular", color="black", size=.5, right=T) +
+		geom_tiplab (align = TRUE, size=4) +
+		theme_tree2()+
+		labs(caption="Divergence time (million years ago)")
+	GPTplot <- revts(GPTplot)
+	GPTplot + scale_x_continuous(labels=abs) +
+		theme(axis.text=element_text(size=8), axis.title=element_text(size=10))
+	ggsave (paste0(GPTout, ".pdf"), plot=GPTplot, device="pdf", width=8.5, height=6, units="cm",dpi=600, family="ArialMT", bg = "white")
+	return (0)
+}
+
+
+################# input and output #########################
+print (paste0("Input File: ", opt$file))
+print (paste0("Output File: ", opt$out))
+if (is.null(opt$exclist)) {
+	tip2rm=c()
+} else {
+	print (paste0("Species excluded: ", opt$exclist))
+	exclist <- strsplit(opt$exclist, ",")
+	tip2rm<-unlist(exclist)
+}
+if (! is.null(opt$root)) {
+	print (paste0("Root: ", opt$root))
+}
+
+
+### Default
+treefile<-opt$file
+treeout<-opt$out
+#tip2rm=c("HH")
+min_branch_time<-1e-8
+### model = "discrete" "clock" "correlated"
+tree_model<-"discrete"
+
+
+
+################# MAIN #####################################
+library(ape, quietly = T)
+library(ggtree, quietly = T)
+library(ggplot2, quietly = T)
+library(R.utils, quietly = T)
+mltree <- read.tree(treefile)
+
+
+
+### confirm tree is binary
+mrca_test3<-getMRCA(mltree,c("St", "BB"))
+mrca_test4<-getMRCA(mltree,c("SS", "BB"))
+mrca_test5<-getMRCA(mltree,c("SS", "St"))
+if (mrca_test3 == mrca_test4 & mrca_test3 == mrca_test5) {
+	cmd_line=paste0("touch ", treeout, ".MultiStBBSS")
+	system(cmd_line)
+	stop(paste0("Multiple node: SS BB St in ",treefile))
+}
+if (! is.binary(mltree)) {
+	plotPhylogeneTree4(mltree, paste0(treeout,".0.multi"))
+	cmd_line=paste0("touch ", treeout, ".Multi")
+	system(cmd_line)
+	stop(paste0("Multiple node: ",treefile))
+#	set.seed(123)
+#	mltree <- multi2di(mltree)
+}
+mltree=ladderize(mltree)
+if (opt$debug) {
+	plotPhylogeneTree4(mltree, paste0(treeout,".0.binary"))
+}
+
+
+
+### Root a tree
+if (! is.null(opt$root)) {
+	print (paste0("Tree to root", treefile))
+	mltree=root(mltree, opt$root, resolve.root = TRUE)
+}
+if (is.rooted(mltree)) {
+	print (paste0("Tree rooted: ", treefile))
+} else {
+	print (paste0("Tree NOT rooted: ", treefile))
+}
+if (opt$debug) {
+	plotPhylogeneTree4(mltree, paste0(treeout,".1.rooted"))
+	write.tree(mltree, paste0(treeout,".1.rooted.nwk"))
+}
+
+
+
+### Apply min branch length
+#mltree$edge.length[mltree$edge.length < min_branch_time] <- min_branch_time
+
+
+
+### Remove tree with St/HH at the same node
+###    as these St genes are actually from HH
+mrca<-getMRCA(mltree,c("St", "HH"))
+library(geiger, quietly = T)
+nodenumStHH <- tips(mltree, node=mrca)
+if (length(nodenumStHH)==2) {
+	cmd_line=paste0("touch ", treeout, ".St2HH")
+	system(cmd_line)
+	stop(paste0("HH genes in St: ",treeout))
+}
+### Remove defined leaf: tip2rm
+if (length(tip2rm)>0) {
+	mltree <- drop.tip(mltree, tip2rm)
+	if (opt$debug) {
+		plotPhylogeneTree4(mltree, paste0(treeout,".2.rm"))
+		write.tree(mltree, paste0(treeout,".2.rm.nwk"))
+	}
+}
+
+
+
+### State BB close to SS or St
+mrca_test1<-getMRCA(mltree,c("St", "BB"))
+nodenumStBB <- tips(mltree, node=mrca_test1)
+mrca_test2<-getMRCA(mltree,c("SS", "BB"))
+nodenumSSBB <- tips(mltree, node=mrca_test2)
+if (length(nodenumStBB)==2) {
+	cmd_line=paste0("touch ",treeout,".St_Genes")
+	system(cmd_line)
+	cat("St-source genes:", treeout, sep=" ")
+}
+if (length(nodenumSSBB)==2) {
+	cmd_line=paste0("touch ",treeout,".SS_Genes")
+	system(cmd_line)
+	cat("SS-source genes:", treeout, sep=" ")
+}
+if (opt$debug) {
+	plotPhylogeneTree4(mltree, paste0(treeout,".3.notime"))
+	write.tree(mltree, paste0(treeout,".3.notime.nwk"))
+}
+
+
+### Define tree calibration diveregence time
+### configure line start =========================
+nodes<-c(findMRCA(mltree,c("Os","SS")),
+         findMRCA(mltree,c("Bd","SS")))
+age.min <- c(41.5, 29.3)
+age.max <- c(62.0, 35.5)
+### configure line end   =========================
+calibration<-makeChronosCalib(mltree,node=nodes, age.min=age.min, age.max=age.max)
+chronosctl<-chronos.control(nb.rate.cat=length(mltree$tip.label))
+##With our calibration table in hand, we can go ahead and fit our model using penalized-likelihood as follows.
+### model = "discrete" "clock" "correlated"
+### nb.rate.cat = 10: the number of rate categories if model = "discrete" (set this parameter to 1 to fit a strict clock model).
+ultrametric_tree<-chronos(mltree, calibration=calibration, model = tree_model,  control = chronosctl)
+if (is.ultrametric(ultrametric_tree)) {
+	if (opt$debug) {
+		save.image(paste0(treeout,".4.ultrametric.Rdata"))
+	}
+#	ultrametric_tree$node.label[1]=""
+	write.tree(ultrametric_tree, file = paste0(treeout,".4.ultrametric.tre"), append = FALSE)
+#, tree.names="tree treeout
+	plotPhylogeneTree5(ultrametric_tree, paste0(treeout,".4.ultrametric"))
+} else {
+	stop("Error: not ultrametric tree")
+}

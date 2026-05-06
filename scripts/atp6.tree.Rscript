@@ -1,0 +1,22 @@
+#!/usr/bin/Rscript
+
+library(ggtree)
+
+ggtree(tree,branch.length = "none", layout = "circular") +
+  geom_strip(taxa1 = "YN-8",
+             taxa2 = "YN-3",
+             offset = 2,
+             barsize = 20,
+             extend = 0.5,
+             color="#7c90c8",
+             label = "YN",
+             offset.text = 3)+
+  geom_hilight(node=63,fill="#1E90FF",type="rect",alpha=0.6)
+  geom_tiplab(size=3,align = TRUE,offset = 1)
+  theme(legend.position = c(0.05,0.15))
+
+geom_taxalink("E", "H", color="blue3")
+
+#https://yulab-smu.top/treedata-book/chapter4.html
+  ggdensitree(btrees, alpha=.3, colour='steelblue') +
+    geom_tiplab(size=3) + hexpand(.35)

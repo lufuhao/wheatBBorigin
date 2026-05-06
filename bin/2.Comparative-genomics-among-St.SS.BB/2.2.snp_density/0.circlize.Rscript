@@ -1,0 +1,78 @@
+#!/usr/bin/Rscript
+
+library(circlize)
+
+svg(filename="1.SS.St.circlize.svg", width=4, height=4, pointsize=10)
+circos.clear()
+
+###
+readVcfDen <- function (vcffile) {
+	df<-read.table(vcffile,sep="\t",header=T)
+	print(head(df))
+	print(dim(df))
+	print(str(df))
+	df<-df[,c(1,2,4)]
+	colnames(df)<-c("Chr","X","Y")
+	df$X<-as.numeric(sprintf("%.2f", df$X/100000000))
+	print(head(df))
+	print(str(df))
+	return(df)
+}
+df_all<-readVcfDen("1.out.clean.vcf.den.snpden")
+df_st<-readVcfDen("1.out.clean.st.vcf.den.snpden")
+df_ss<-readVcfDen("1.out.clean.ss.vcf.den.snpden")
+df_BBst<-readVcfDen("2.StBB.genes/2.BB.gene.list.pos")
+
+### chr len
+
+ref_len=data.frame(Chr=c("Chr1B", "Chr2B", "Chr3B", "Chr4B", "Chr5B", "Chr6B", "Chr7B"),
+                   Length=c(7.00547350, 8.12755788, 8.51934019, 6.73810255, 7.14805278, 7.31188232, 7.64081788))
+
+### chr rectangular
+circos.par(gap.degree=c(2,2,2,2,2,2,6), start.degree=0)
+circos.initialize(factors=df_all$Chr,x=df_all$X,xlim=matrix(c(rep(0,7),ref_len$Length),ncol=2))
+circos.trackPlotRegion(factors=df_all$Chr,y=df_all$Y,
+                       panel.fun=function(x,y){
+                         circos.axis()
+                       },track.height = 0.08)
+
+for(i in 1:7){
+  highlight.sector(sector.index = paste0("Chr",i,"B"),col='grey')
+  circos.text(CELL_META$xcenter, CELL_META$ycenter,
+              labels = paste0("Chr",i,"B"),
+              sector.index = paste0("Chr",i,"B"),cex=0.8)
+}
+
+circos.trackPlotRegion(factors=df_BBst$Chr,y=df_BBst$Y,ylim = c(0, 1),track.height = 0.1)
+circos.trackPoints(df_BBst$Chr,df_BBst$X,df_BBst$Y,col="purple",pch=19, cex=0.01)
+circos.text(sector.index="Chr1B",track.index = 1,get.cell.meta.data("cell.xlim")-mean(get.cell.meta.data("cell.xlim"))/30,
+            get.cell.meta.data("cell.ylim")-2*max(get.cell.meta.data("cell.ylim")), labels = "a",facing = "clockwise",
+            niceFacing = TRUE, adj = c(0,0),cex = 1)
+circos.trackPlotRegion(factors=df_st$Chr,y=df_st$Y,track.height = 0.15)
+circos.trackPoints(df_st$Chr,df_st$X,df_st$Y,col="blue",pch=19, cex=0.01)
+circos.text(sector.index="Chr1B",track.index = 1,get.cell.meta.data("cell.xlim")-mean(get.cell.meta.data("cell.xlim"))/30,
+            get.cell.meta.data("cell.ylim")-40*max(get.cell.meta.data("cell.ylim")), labels = "b",facing = "clockwise",
+            niceFacing = TRUE, adj = c(0,0),cex = 1)
+circos.trackPlotRegion(factors=df_ss$Chr,y=df_ss$Y,track.height = 0.15)
+circos.trackPoints(df_ss$Chr,df_ss$X,df_ss$Y,col="green",pch=19, cex=0.01)
+circos.text(sector.index="Chr1B",track.index = 1,get.cell.meta.data("cell.xlim")-mean(get.cell.meta.data("cell.xlim"))/30,
+            get.cell.meta.data("cell.ylim")-23*max(get.cell.meta.data("cell.ylim")), labels = "c",facing = "clockwise",
+            niceFacing = TRUE, adj = c(0,0),cex = 1)
+circos.trackPlotRegion(factors=df_all$Chr,y=df_all$Y,track.height = 0.15)
+circos.trackPoints(df_all$Chr,df_all$X,df_all$Y,col="red",pch=19, cex=0.01)
+circos.text(sector.index="Chr1B",track.index = 1,get.cell.meta.data("cell.xlim")-mean(get.cell.meta.data("cell.xlim"))/30,
+            get.cell.meta.data("cell.ylim")-9.5*max(get.cell.meta.data("cell.ylim")), labels = "d",facing = "clockwise",
+            niceFacing = TRUE, adj = c(0,0),cex = 1)
+
+
+circos.clear()
+dev.off()
+
+### CMplot
+library(CMplot)
+mydatast <- read.table("1.out.clean.st.cmplot", header = F, sep = "\t")
+mydatass <- read.table("1.out.clean.ss.cmplot", header = F, sep = "\t")
+mydata <- read.table("1.out.clean.cmplot2.sort", header = F, sep = "\t")
+CMplot(mydatast, plot.type = "d", bin.size = 5e6, col = c("darkgreen", "yellow", "red"),file="pdf",dpi=600,file.name="1.out.clean.st.cmplot.pdf")
+CMplot(mydatass, plot.type = "d", bin.size = 5e6, col = c("darkgreen", "yellow", "red"),file="pdf",dpi=600,file.name="1.out.clean.ss.cmplot.pdf")
+CMplot(mydata, plot.type = "d", bin.size = 5e6, col = c("darkgreen", "yellow", "red"),file="pdf",dpi=600,file.name="1.out.clean.cmplot2.sort.pdf",ylim=c(10,300))

@@ -1,0 +1,125 @@
+
+```Bash
+
+coord2data () {
+	coordsfile=$1
+	datafile=$2
+	(echo -e "Chr\tStart\tEnd\tValue\tArm";cat $coordsfile | perl -lane 'BEGIN{%hash=("Chr1B"=>251400000,"Chr2B"=>330350000,"Chr3B"=>320660000,"Chr4B"=>261100000,"Chr5B"=>170250000,"Chr6B"=>334500000,"Chr7B"=>323000000);}if ($F[0]<$hash{$F[9]}) {print $F[9]."\t".$F[0]."\t".$F[1]."\t".$F[6]."\tp";}else {print $F[9]."\t".$F[0]."\t".$F[1]."\t".$F[6]."\tq"}') > $datafile
+	if [ $? -ne 0 ] || [ ! -s $datafile ]; then
+		echo "Error: coord2data error" >&2
+		return 100
+	fi
+	return 0
+}
+for x in {1..1}; do
+	echo "Chr${x}B"
+	delta_ss_file="Chr${x}S.vs.chr${x}B.fil1L300.delta"
+	show-coords -THrd $delta_ss_file > $delta_ss_file.coords
+	(echo -e "Chr\tStart\tEnd\tValue\tArm";cat $delta_ss_file.coords | perl -lane 'BEGIN{%hash=("Chr1B"=>251400000,"Chr2B"=>330350000,"Chr3B"=>320660000,"Chr4B"=>261100000,"Chr5B"=>170250000,"Chr6B"=>334500000,"Chr7B"=>323000000);}$min=0;$max=0; if ($F[2]>$F[3]) {$min=$F[3];$max=$F[2];} else {$min=$F[2];$max=$F[3];} if ($min < $hash{$F[9]}) {print $F[9]."\t".$min."\t".$max."\t".$F[6]."\tp";}else {print $F[9]."\t".$min."\t".$max."\t".$F[6]."\tq"}') > $delta_ss_file.coords.data
+	delta_st_file="Chr${x}B.vs.chr${x}St.fil1L200.delta"
+	show-coords -THrd $delta_st_file > $delta_st_file.coords
+	(echo -e "Chr\tStart\tEnd\tValue\tArm";cat $delta_st_file.coords | perl -lane 'BEGIN{%hash=("Chr1B"=>251400000,"Chr2B"=>330350000,"Chr3B"=>320660000,"Chr4B"=>261100000,"Chr5B"=>170250000,"Chr6B"=>334500000,"Chr7B"=>323000000);}if ($F[0]<$hash{$F[9]}) {print $F[9]."\t".$F[0]."\t".$F[1]."\t".$F[6]."\tp";}else {print $F[9]."\t".$F[0]."\t".$F[1]."\t".$F[6]."\tq"}') > $delta_st_file.coords.data
+done
+
+(head -n 1 Chr1B.vs.chr1S.delta.coords.data; tail -n +2 Chr1B.vs.chr1S.delta.coords.data; tail -n +2  Chr2B.vs.chr2S.delta.coords.data; tail -n +2  Chr3B.vs.chr3S.delta.coords.data; tail -n +2  Chr4B.vs.chr4S.delta.coords.data; tail -n +2  Chr5B.vs.chr5S.delta.coords.data; tail -n +2  Chr6B.vs.chr6S.delta.coords.data; tail -n +2  Chr7B.vs.chr7S.delta.coords.data) > BB_SS.data
+
+(head -n 1 Chr1B.vs.chr1St.delta.coords.data; tail -n +2 Chr1B.vs.chr1St.delta.coords.data; tail -n +2 Chr2B.vs.chr2St.delta.coords.data; tail -n +2 Chr3B.vs.chr3St.delta.coords.data; tail -n +2 Chr4B.vs.chr4St.delta.coords.data; tail -n +2 Chr5B.vs.chr5St.delta.coords.data; tail -n +2 Chr6B.vs.chr6St.delta.coords.data; tail -n +2 Chr7B.vs.chr7St.delta.coords.data) > BB_St.data
+
+```
+
+
+
+```Rscript
+### RIdeogram
+#install.packages('RIdeogram')
+require(RIdeogram)
+### ggideogram
+install.packages("devtools")
+library(devtools)
+devtools::install_github('dxsbiocc/ggideogram')
+require(ggideogram)
+library(ggplot2)
+library(dplyr)
+
+### test
+data(human_karyotype, package="RIdeogram")
+data(gene_density, package="RIdeogram")
+ideogram(karyotype = human_karyotype, overlaid = gene_density)
+
+
+
+### read length centromere
+karyotype <- read.table("0.karyotype.tab", sep = "\t", header = T, stringsAsFactors = F)
+head(karyotype)
+dim(karyotype)
+
+
+
+density <- read.table("data_1.txt", sep = "\t", header = T, stringsAsFactors = F)
+#  Chr   Start     End Value
+#1   1       1 1000000    65
+#2   1 1000001 2000000    76
+#3   1 2000001 3000000    35
+colorset1 = c（“＃4575b4”，“＃fffffff”，“＃d73027”）
+ggideogram(karyotype,plot_direction = "horizontal",chrom_display = "gene_density",density_color = c("skyblue", "red"),)
+ideogram(karyotype = human_karyotype, overlaid = gene_density, colorset1 = c("#FFE2E2", "#FFA2A2", "#E7180B"))
+convertSVG("chromosome.svg", device = "png")
+
+
+
+
+karyotype2 <- read.table("0.karyotype2.tab", sep = "\t", header = T, stringsAsFactors = F)
+head(karyotype2)
+dim(karyotype2)
+bs <- read.table("BB_SS.data", sep = "\t", header = T, stringsAsFactors = T, blank.lines.skip = TRUE)
+head(bs)
+dim(bs)
+str(bs)
+bt <- read.table("BB_St.data", sep = "\t", header = T, stringsAsFactors = F)
+head(bt)
+dim(bt)
+str(bt)
+
+
+
+ggplot(karyotype2) +
+    geom_ideogram(aes(x = Chr, ymin = Start, ymax = End,
+                      chrom = Chr, arm = Arm),
+                  radius = unit(6, 'pt'), width = 0.5, linewidth = .2,
+                  colour = 'black', show.legend = FALSE) +
+    coord_flip() +
+    theme(
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()
+    )
+
+ideoplot<- ggplot() +
+    geom_ideogram(aes(x = Chr, ymin = Start, ymax = End,
+                      chrom = Chr, fill = Value, arm=Arm),
+                  data = bs,
+                  radius = unit(2, 'pt'), width = 0.2,
+                  linewidth = 1, just = -0.05,
+                  chrom.col = "#252525", chrom.lwd = .5) +
+    scale_fill_gradient(name = "BB-SS", low = "#FFE2E2",
+                        high = "#E7180B", n.breaks = 3) +
+    ggnewscale::new_scale_fill() +
+    geom_ideogram(aes(x = Chr, ymin = Start, ymax = End,
+                      chrom = Chr, fill = Value, arm=Arm),
+                  data = bt,
+                  radius = unit(2, 'pt'), width = 0.2,
+                  linewidth = 1, just = 1.05,
+                  chrom.col = "#252525", chrom.lwd = .5) +
+    scale_fill_gradient(name = "BB-St", low = "#FFE2E2",
+                        high = "#E7180B", n.breaks = 3) +
+    coord_flip() +
+    theme(text=element_text(size=10, family="ArialMT"),
+        axis.text=element_text(size=8, family="ArialMT"),
+        legend.text=element_text(size=8, family="ArialMT"),
+        legend.title=element_text(size=10, family="ArialMT"),
+        panel.background = element_blank(),
+        legend.position = 'top'
+    )
+ggsave("ideogram.svg", width=8,height=12,units="cm")
+ggsave("ideogram.tif", plot=ideoplot, width=8,height=8,units="cm")
